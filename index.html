@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Aesthetic System v3</title>
+    <!-- Cargamos React y Tailwind desde CDNs para que funcione sin instalar nada -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none;
+            background-color: #09090b;
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        input[type="number"] { font-size: 16px; } /* Evita zoom automático en iPhone */
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // RUTINA BASE PROPORCIONADA POR EL USUARIO
+        const RUTINA_BASE = [
+            {
+                id: 'dia1',
+                nombre: 'Día 1: Torso (Empuje)',
+                enfoque: 'Pecho en Banca y Hombros',
+                ejercicios: [
+                    { id: 'e1', nombre: 'Press Inclinado (Mancuernas)', series: 4, reps: '8-12' },
+                    { id: 'e2', nombre: 'Remo con Mancuerna', series: 4, reps: '8-10' },
+                    { id: 'e3', nombre: 'Elevaciones Laterales', series: 4, reps: '12-15' },
+                    { id: 'e4', nombre: 'Extensión Tríceps Tras Nuca', series: 3, reps: '10-12' }
+                ]
+            },
+            {
+                id: 'dia2',
+                nombre: 'Día 2: Pierna (Cuádriceps)',
+                enfoque: 'Énfasis 1 pierna (Peso máximo)',
+                ejercicios: [
+                    { id: 'e5', nombre: 'Zancadas (Mancuernas)', series: 4, reps: '10-12 /p' },
+                    { id: 'e6', nombre: 'Peso Muerto Rumano (B-Stance)', series: 4, reps: '8-10 /p' },
+                    { id: 'e7', nombre: 'Elevación Pantorrillas', series: 4, reps: '15-20' },
+                    { id: 'e8', nombre: 'Elevación de Piernas (Suelo)', series: 4, reps: 'Fallo' }
+                ]
+            },
+            {
+                id: 'dia3',
+                nombre: 'Día 3: Torso (Tirón)',
+                enfoque: 'Espalda y Pecho General',
+                ejercicios: [
+                    { id: 'e9', nombre: 'Dominadas Negativas (4 seg)', series: 4, reps: '4-6' },
+                    { id: 'e10', nombre: 'Press Plano (Mancuernas)', series: 4, reps: '8-12' },
+                    { id: 'e11', nombre: 'Pájaros en Banca Inclinada', series: 4, reps: '15-20' },
+                    { id: 'e12', nombre: 'Curl Martillo', series: 3, reps: '10-12' }
+                ]
+            },
+            {
+                id: 'dia4',
+                nombre: 'Día 4: Pierna (Cadena Posterior)',
+                enfoque: 'Glúteo y Femoral',
+                ejercicios: [
+                    { id: 'e13', nombre: 'Peso Muerto Rumano (Lento)', series: 4, reps: '10-12' },
+                    { id: 'e14', nombre: 'Sentadilla Goblet (20kg)', series: 3, reps: '12-15' },
+                    { id: 'e15', nombre: 'Elevación Pantorrillas', series: 4, reps: '15-20' },
+                    { id: 'e16', nombre: 'Crunches con Peso', series: 4, reps: '12-15' }
+                ]
+            }
+        ];
+
+        // Componente de Icono Simple para evitar errores de carga
+        const Icon = ({ name, size = 20, color = "currentColor" }) => {
+            return <i data-lucide={name} style={{ width: size, height: size, color: color }}></i>;
+        };
+
+        function App() {
+            const [tab, setTab] = useState('rutina');
+            const [diaActivo, setDiaActivo] = useState(null);
+            const [sesionActual, setSesionActual] = useState({});
+            const [historial, setHistorial] = useState([]);
+            const [habitos, setHabitos] = useState({ proteina: false, agua: false, sueno: false });
+            const [mensaje, setMensaje] = useState('');
+
+            // Cargar datos al iniciar
+            useEffect(() => {
+                const h = localStorage.getItem('aesthetic_history');
+                const hab = localStorage.getItem('aesthetic_habits');
+                const lastDate = localStorage.getItem('aesthetic_last_date');
+                const today = new Date().toDateString();
+
+                if (h) setHistorial(JSON.parse(h));
+                if (hab && lastDate === today) {
+                    setHabitos(JSON.parse(hab));
+                } else {
+                    localStorage.setItem('aesthetic_last_date', today);
+                }
+                
+                setTimeout(() => lucide.createIcons(), 100);
+            }, []);
+
+            // Actualizar iconos cada vez que cambia el TAB o el DIA
+            useEffect(() => {
+                lucide.createIcons();
+            }, [tab, diaActivo]);
+
+            const toggleHabito = (key) => {
+                const newHabits = { ...habitos, [key]: !habitos[key] };
+                setHabitos(newHabits);
+                localStorage.setItem('aesthetic_habits', JSON.stringify(newHabits));
+            };
+
+            const handleInput = (ejId, index, field, val) => {
+                setSesionActual(prev => {
+                    const copy = { ...prev };
+                    if (!copy[ejId]) copy[ejId] = [];
+                    if (!copy[ejId][index]) copy[ejId][index] = { p: '', r: '' };
+                    copy[ejId][index][field] = val;
+                    return copy;
+                });
+            };
+
+            const guardar = () => {
+                if (Object.keys(sesionActual).length === 0) return setMensaje('Anota algo, bro.');
+                
+                const nueva = {
+                    id: Date.now(),
+                    fecha: new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }),
+                    nombre: diaActivo.nombre,
+                    datos: sesionActual
+                };
+
+                const nuevoHistorial = [nueva, ...historial];
+                setHistorial(nuevoHistorial);
+                localStorage.setItem('aesthetic_history', JSON.stringify(nuevoHistorial));
+                
+                setSesionActual({});
+                setDiaActivo(null);
+                setTab('historial');
+                setMensaje('¡Guardado! A recuperar ahora.');
+                setTimeout(() => setMensaje(''), 3000);
+            };
+
+            const exportarDatos = () => {
+                const dataStr = JSON.stringify(historial);
+                navigator.clipboard.writeText(dataStr);
+                setMensaje('Datos copiados al portapapeles.');
+            };
+
+            return (
+                <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-24">
+                    {/* Header */}
+                    <header className="bg-zinc-900/50 backdrop-blur-md p-5 sticky top-0 z-20 border-b border-zinc-800 flex justify-between items-center">
+                        <div>
+                            <h1 className="text-lg font-black tracking-tighter text-white">AESTHETIC <span className="text-teal-500">SYSTEM</span></h1>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Gimnasio en Casa</p>
+                        </div>
+                        {mensaje && <span className="text-[10px] bg-teal-500 text-zinc-950 px-2 py-1 rounded font-bold animate-pulse">{mensaje}</span>}
+                    </header>
+
+                    <main className="p-4 max-w-md mx-auto">
+                        
+                        {/* TAB ENTRENAR */}
+                        {tab === 'rutina' && !diaActivo && (
+                            <div className="space-y-3 animate-in fade-in duration-500">
+                                <div className="p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl mb-4">
+                                    <p className="text-xs text-teal-200/70 leading-relaxed">
+                                        Foco: Sobrecarga progresiva. Si la semana pasada hiciste 8 reps con 20kg, hoy intenta 9 o baja más lento.
+                                    </p>
+                                </div>
+                                {RUTINA_BASE.map(dia => (
+                                    <button 
+                                        key={dia.id}
+                                        onClick={() => setDiaActivo(dia)}
+                                        className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl text-left active:scale-[0.98] transition-transform flex justify-between items-center"
+                                    >
+                                        <div>
+                                            <h3 className="font-bold text-teal-400">{dia.nombre}</h3>
+                                            <p className="text-xs text-zinc-500 mt-1">{dia.enfoque}</p>
+                                        </div>
+                                        <Icon name="chevron-right" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* DIA ACTIVO */}
+                        {diaActivo && (
+                            <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                                <button onClick={() => setDiaActivo(null)} className="flex items-center gap-2 text-zinc-500 text-sm font-bold mb-2">
+                                    <Icon name="arrow-left" size={16} /> Volver
+                                </button>
+
+                                {diaActivo.ejercicios.map(ej => (
+                                    <div key={ej.id} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="font-bold text-sm text-zinc-200">{ej.nombre}</h4>
+                                            <span className="text-[10px] font-black text-teal-500 bg-teal-500/10 px-2 py-1 rounded">{ej.series}x{ej.reps}</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {[...Array(ej.series)].map((_, i) => (
+                                                <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                                                    <span className="col-span-1 text-[10px] font-bold text-zinc-600">{i+1}</span>
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="Kg"
+                                                        className="col-span-5 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-center text-sm focus:border-teal-500 outline-none"
+                                                        value={sesionActual[ej.id]?.[i]?.p || ''}
+                                                        onChange={(e) => handleInput(ej.id, i, 'p', e.target.value)}
+                                                    />
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="Reps"
+                                                        className="col-span-6 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-center text-sm focus:border-teal-500 outline-none"
+                                                        value={sesionActual[ej.id]?.[i]?.r || ''}
+                                                        onChange={(e) => handleInput(ej.id, i, 'r', e.target.value)}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <button 
+                                    onClick={guardar}
+                                    className="w-full bg-teal-600 text-zinc-950 font-black py-4 rounded-2xl shadow-lg shadow-teal-900/20 active:scale-95 transition-all mt-6"
+                                >
+                                    FINALIZAR ENTRENAMIENTO
+                                </button>
+                            </div>
+                        )}
+
+                        {/* TAB HÁBITOS */}
+                        {tab === 'habitos' && (
+                            <div className="space-y-4 animate-in fade-in">
+                                <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
+                                    <h2 className="text-xl font-black mb-4">No negocia bles</h2>
+                                    <div className="space-y-3">
+                                        {[
+                                            { id: 'proteina', label: 'Proteína', desc: 'Carne/Huevo en cada comida', icon: 'utensils', color: 'text-teal-400' },
+                                            { id: 'agua', label: 'Agua', desc: '3 Litros cumplidos', icon: 'droplets', color: 'text-blue-400' },
+                                            { id: 'sueno', label: 'Sueño', desc: '7-8 horas de descanso', icon: 'moon', color: 'text-indigo-400' }
+                                        ].map(h => (
+                                            <button 
+                                                key={h.id}
+                                                onClick={() => toggleHabito(h.id)}
+                                                className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${habitos[h.id] ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-900'}`}
+                                            >
+                                                <div className={`p-3 rounded-full ${habitos[h.id] ? 'bg-teal-500 text-zinc-900' : 'bg-zinc-900 text-zinc-500'}`}>
+                                                    <Icon name={h.icon} size={18} />
+                                                </div>
+                                                <div className="text-left flex-1">
+                                                    <p className={`font-bold text-sm ${habitos[h.id] ? h.color : 'text-zinc-500'}`}>{h.label}</p>
+                                                    <p className="text-[10px] text-zinc-600 font-medium">{h.desc}</p>
+                                                </div>
+                                                {habitos[h.id] && <Icon name="check" size={18} color="#14b8a6" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB HISTORIAL */}
+                        {tab === 'historial' && (
+                            <div className="space-y-3 animate-in fade-in">
+                                {historial.length === 0 ? (
+                                    <p className="text-center text-zinc-600 py-20 text-sm">Aún no has sudado. Empieza hoy.</p>
+                                ) : (
+                                    historial.map(s => (
+                                        <div key={s.id} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <p className="font-bold text-sm">{s.nombre}</p>
+                                                <p className="text-[10px] text-zinc-500 font-bold uppercase">{s.fecha}</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {Object.keys(s.datos).map(eid => (
+                                                    <span key={eid} className="text-[9px] bg-zinc-950 border border-zinc-800 px-2 py-1 rounded text-zinc-400">
+                                                        {s.datos[eid].length} sets
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+
+                                <button 
+                                    onClick={exportarDatos}
+                                    className="w-full mt-10 py-3 text-[10px] font-black text-zinc-600 uppercase tracking-widest border border-zinc-800 border-dashed rounded-xl"
+                                >
+                                    Exportar Copia de Seguridad
+                                </button>
+                            </div>
+                        )}
+
+                    </main>
+
+                    {/* Navbar inferior */}
+                    <nav className="fixed bottom-0 w-full bg-zinc-900/80 backdrop-blur-xl border-t border-zinc-800 flex justify-around p-3 pb-safe z-30">
+                        <button onClick={() => setTab('rutina')} className={`flex flex-col items-center gap-1 ${tab === 'rutina' ? 'text-teal-500' : 'text-zinc-500'}`}>
+                            <Icon name="dumbbell" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Entrenar</span>
+                        </button>
+                        <button onClick={() => setTab('habitos')} className={`flex flex-col items-center gap-1 ${tab === 'habitos' ? 'text-teal-500' : 'text-zinc-500'}`}>
+                            <Icon name="flame" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Hábitos</span>
+                        </button>
+                        <button onClick={() => setTab('historial')} className={`flex flex-col items-center gap-1 ${tab === 'historial' ? 'text-teal-500' : 'text-zinc-500'}`}>
+                            <Icon name="history" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">Registros</span>
+                        </button>
+                    </nav>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
